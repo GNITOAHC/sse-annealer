@@ -1,5 +1,6 @@
 #include "mc.h"
 #include "util.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 void mc_sweep (params_t *p, constants_t c) {
@@ -13,6 +14,20 @@ void mc_sweep (params_t *p, constants_t c) {
     vertices_link(p, c, frst, last, vrtx);  // 頂點連結
     cluster_update(p, c, frst, vrtx, stck); // 叢集更新
     clean_up(vrtx, stck, frst, last, NULL);
+}
+
+/* Return the chosen index of the chosen bond */
+static int random_bond (bond_t *bonds, size_t nb) {
+    double total_weight = 0.0;
+    for (size_t i = 0; i < nb; ++i)
+        total_weight += (bonds[i].val < 0.0 ? -bonds[i].val : bonds[i].val);
+    double random_value      = ((double)rand() / RAND_MAX) * total_weight;
+    double cumulative_weight = 0.0;
+    for (int i = 0; i < nb; i++) {
+        cumulative_weight += (bonds[i].val < 0.0 ? -bonds[i].val : bonds[i].val);
+        if (random_value <= cumulative_weight) { return i; }
+    }
+    return nb - 1; /* Prevent rounding errors */
 }
 
 // Update the diagnonal component in the Matrix
@@ -29,11 +44,22 @@ void diagonal_update (params_t *p, constants_t c) {
         if (opers[p].type == IDENT) { // I
             if (double_r250() * (double)(m - *ni) < pa1) {
                 if (double_r250() < pa2) {
-                    int a  = double_r250() * nb;
-                    int o1 = bonds[a].site1;
-                    int o2 = bonds[a].site2;
+                    int a  = random_bond(bonds, nb);
+                    int o1 = bonds[a].site1, o2 = bonds[a].site2;
+
                     /* TODO: Check anti along with the bond between two sites */
-                    if (spins[o1] == -spins[o2]) { // anti or not
+                    short bonding_sign = 0;
+                    for (int i = 0; i < nb; ++i) {
+                        if (bonds[i].site1 == o1 && bonds[i].site2 == o2) {
+                            bonding_sign = bonds[i].val > 0 ? 1 : -1;
+                            break;
+                        }
+                        if (bonds[i].site1 == o2 && bonds[i].site2 == o1) {
+                            bonding_sign = bonds[i].val > 0 ? 1 : -1;
+                            break;
+                        }
+                    }
+                    if (spins[o1] == -(spins[o2] * bonding_sign)) { // anti or not
                         opers[p].type  = JJ;
                         opers[p].site1 = o1;
                         opers[p].site2 = o2;
@@ -54,13 +80,22 @@ void diagonal_update (params_t *p, constants_t c) {
                 int k = 1;
                 while (k == 1) {
                     if (double_r250() < pa2) {
-                        /* TODO: Use search method to give larger weight a larger prob to be
-                         * selected */
-                        int b  = double_r250() * nb;
-                        int o1 = bonds[b].site1;
-                        int o2 = bonds[b].site2;
+                        int b  = random_bond(bonds, nb);
+                        int o1 = bonds[b].site1, o2 = bonds[b].site2;
+
                         /* TODO: Check anti along with the bond between two sites */
-                        if (spins[o1] == -spins[o2]) {
+                        short bonding_sign = 0;
+                        for (int i = 0; i < nb; ++i) {
+                            if (bonds[i].site1 == o1 && bonds[i].site2 == o2) {
+                                bonding_sign = bonds[i].val > 0 ? 1 : -1;
+                                break;
+                            }
+                            if (bonds[i].site1 == o2 && bonds[i].site2 == o1) {
+                                bonding_sign = bonds[i].val > 0 ? 1 : -1;
+                                break;
+                            }
+                        }
+                        if (spins[o1] == -(spins[o2] * bonding_sign)) {
                             opers[p].type  = JJ;
                             opers[p].site1 = o1;
                             opers[p].site2 = o2;
