@@ -4,15 +4,15 @@
 #include <stdlib.h>
 
 void mc_sweep (params_t *p, constants_t c) {
-    const int l = c.l, n = c.n, nb = c.nb, m = c.m, tau = c.tau;
+    const int n = c.n, nb = c.nb, m = c.m, tau = c.tau;
     int *vrtx = (int *)malloc(m * 4 * sizeof(int));
     int *stck = (int *)malloc(m * 4 * sizeof(int));
     int *frst = (int *)malloc(n * sizeof(int));
     int *last = (int *)malloc(n * sizeof(int));
 
-    diagonal_update(p, c);                  // 對角更新
-    vertices_link(p, c, frst, last, vrtx);  // 頂點連結
-    cluster_update(p, c, frst, vrtx, stck); // 叢集更新
+    diagonal_update(p, c);
+    vertices_link(p, c, frst, last, vrtx);
+    cluster_update(p, c, frst, vrtx, stck);
     clean_up(vrtx, stck, frst, last, NULL);
 }
 
@@ -30,7 +30,7 @@ static int random_bond (bond_t *bonds, size_t nb) {
     return nb - 1; /* Prevent rounding errors */
 }
 
-// Update the diagnonal component in the Matrix
+/* Update the diagnonal component in the Matrix */
 void diagonal_update (params_t *p, constants_t c) {
     oper_t *opers    = p->opers;
     bond_t *bonds    = p->bonds;
@@ -38,10 +38,10 @@ void diagonal_update (params_t *p, constants_t c) {
     int *ni          = &p->ni;
     const double pa1 = p->pa1, pa2 = p->pa2;
 
-    const int l = c.l, n = c.n, nb = c.nb, m = c.m, tau = c.tau;
+    const int n = c.n, nb = c.nb, m = c.m, tau = c.tau;
 
     for (int p = 0; p < m; p++) {
-        if (opers[p].type == IDENT) { // I
+        if (opers[p].type == IDENT) {
             if (double_r250() * (double)(m - *ni) < pa1) {
                 if (double_r250() < pa2) {
                     int a  = random_bond(bonds, nb);
@@ -59,7 +59,7 @@ void diagonal_update (params_t *p, constants_t c) {
                             break;
                         }
                     }
-                    if (spins[o1] == -(spins[o2] * bonding_sign)) { // anti or not
+                    if (spins[o1] == -(spins[o2] * bonding_sign)) { /* anti or not */
                         opers[p].type  = JJ;
                         opers[p].site1 = o1;
                         opers[p].site2 = o2;
@@ -71,11 +71,11 @@ void diagonal_update (params_t *p, constants_t c) {
                     *ni += 1;
                 }
             }
-        } else if (opers[p].type == H || opers[p].type == JJ) { // h or JJ
-            if (double_r250() * pa1 < (double)(m - *ni + 1)) {  // remove the operator
+        } else if (opers[p].type == H || opers[p].type == JJ) { /* h or JJ */
+            if (double_r250() * pa1 < (double)(m - *ni + 1)) {  /* remove the operator */
                 opers[p].type = IDENT;
                 *ni -= 1;
-            } // One then goes to the next operator in the list
+            } /* One then goes to the next operator in the list */
             else {
                 int k = 1;
                 while (k == 1) {
@@ -117,21 +117,17 @@ void vertices_link (params_t *p, constants_t c, int *frst, int *last, int *vrtx)
     bond_t *bonds = p->bonds;
     short *spins  = p->spins;
 
-    const int l = c.l, n = c.n, nb = c.nb, m = c.m, tau = c.tau;
+    const int n = c.n, nb = c.nb, m = c.m, tau = c.tau;
 
     int v0, s1, s2, v1, v2;
-    // frst => 進入, last => 出來
-    // example:
-    //   the s-th operator :  oper[0][s]=-2,oper[1][s]=5
-    //   means the s-th operator is hx and in site 5
 
     for (int i = 0; i < n; ++i)
         last[i] = frst[i] = -1;
 
-    for (int p = 0; p < m; ++p) { // p => operator 編號
+    for (int p = 0; p < m; ++p) { /* p => operator serial number */
         v0 = 4 * p;
 
-        if (opers[p].type == IDENT) { // oper[1][p] == -1 => Identity
+        if (opers[p].type == IDENT) {
             for (int i = 0; i < 4; i++)
                 vrtx[v0 + i] = -1;
         } else {
@@ -179,7 +175,7 @@ void cluster_update (params_t *p, constants_t c, int *frst, int *vrtx, int *stck
     bond_t *bonds = p->bonds;
     short *spins  = p->spins;
 
-    const int l = c.l, n = c.n, nb = c.nb, m = c.m, tau = c.tau;
+    const int n = c.n, nb = c.nb, m = c.m, tau = c.tau;
 
     int f, s, j, k;
     for (int p = 0; p < m; p++) {
@@ -207,7 +203,7 @@ void cluster_update (params_t *p, constants_t c, int *frst, int *vrtx, int *stck
         while (s > -1) {
             k       = stck[s];
             vrtx[k] = f;
-            j       = k / 4; // might
+            j       = k / 4;
             s -= 1;
             if (opers[j].type == JJ) {
                 for (int k = 4 * j; k < 4 * j + 4; k++) {

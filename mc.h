@@ -1,4 +1,4 @@
-#include "alltypes.h"
+#include "globals.h"
 
 void mc_sweep(params_t *, constants_t);
 void diagonal_update(params_t *, constants_t);

@@ -19,8 +19,9 @@ typedef struct {
     bond_t *bonds;
     short *spins;
 } params_t;
+params_t params_init();
 
 typedef struct {
-    int l, n, nb, m, tau;
+    int n, nb, m, tau;
     double final_hx, init_hx, final_t, init_t;
 } constants_t;

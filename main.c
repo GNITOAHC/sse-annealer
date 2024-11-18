@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "alltypes.h"
 #include "argp.h"
+#include "globals.h"
 #include "mc.h"
 #include "util.h"
 
@@ -12,8 +12,9 @@
 /* TODO: Add one column & two column support */
 
 void measure_energy(params_t *, constants_t, int);
-void input_reader(FILE *source, bond_t *bonds, int *n, int *nb);
+bond_t *input_reader(FILE *source, int *n, int *nb);
 
+/* Deprecated */
 void default_setup (bond_t *bonds, short *spins, oper_t *opers, int l, int n, int m) {
     for (int i = 0; i < n; i++) {
         bonds[i].site1 = i;
@@ -39,12 +40,7 @@ void default_setup (bond_t *bonds, short *spins, oper_t *opers, int l, int n, in
 }
 
 int main (int argc, char *argv[]) {
-    FILE *fptr = fopen("./rec.dat", "r");
-    if (fptr == NULL) {
-        printf("Cannot open file \n");
-        exit(0);
-    }
-    /* Personal setup (default arguments) */
+    /* Default arguments */
     args_t args = (args_t) {
         .qubo       = 0,    /* Currently not supported */
         .input_file = NULL, /* Currently not supported */
@@ -56,25 +52,16 @@ int main (int argc, char *argv[]) {
     };
     args_parse(argc, argv, &args);
 
-    int l = 9;
-    /* ************************** */
-
     double init_t   = args.init_t;
     double final_t  = args.final_t;
     double init_hx  = args.init_hx;
     double final_hx = args.final_hx;
     int tau         = args.tau;
 
-    int n  = l * l;
-    int nb = 3 * n;
-    int m  = n * 5000;
-
-    double J              = 1.0;
     constants_t constants = (constants_t) {
-        .l        = l,
-        .n        = n,   /* Number of sites */
-        .nb       = nb,  /* Number of bonds */
-        .m        = m,   /* Number of operators */
+        .n        = 0,   /* Number of sites */
+        .nb       = 0,   /* Number of bonds */
+        .m        = 0,   /* Number of operators */
         .tau      = tau, /* Numer of sweeps steps */
         .final_hx = final_hx,
         .init_hx  = init_hx,
@@ -82,21 +69,25 @@ int main (int argc, char *argv[]) {
         .init_t   = init_t,
     };
 
-    params_t params = (params_t) {
-        .ni    = 0,   /* Initialize count of not IDENT operator to zero */
-        .hx    = 0.0, /* Will be set later in for loop */
-        .j     = 0.0, /* Will be set later in for loop */
-        .beta  = 0.0, /* Will be set later in for loop */
-        .pa1   = 0.0, /* Will be set later in for loop */
-        .pa2   = 0.0, /* Will be set later in for loop */
-        .opers = (oper_t *)malloc(500 * 5000 * sizeof(oper_t)),
-        .bonds = (bond_t *)malloc(500 * sizeof(bond_t)),
-        .spins = (short *)malloc(n * sizeof(short)),
-    };
+    /*
+     * ni: Initialize count of not IDENT operator to zero,
+     * hx, j, beta, pa1, pa2: Will be set later in for loop,
+     * opers, bonds, spins: Will be set later after reading file
+     */
+    params_t params = params_init();
 
-    input_reader(fptr, params.bonds, &constants.n, &constants.nb);
+    FILE *fptr = fopen(args.input_file, "r");
+    if (fptr == NULL) {
+        perror("fopen");
+        exit(0);
+    }
+
+    /* Returned pointer should be freed */
+    params.bonds = input_reader(fptr, &constants.n, &constants.nb);
     fclose(fptr);
-    constants.m = constants.n * 5000;
+    constants.m  = constants.n * 5000;
+    params.opers = (oper_t *)malloc(constants.m * sizeof(oper_t));
+    params.spins = (short *)malloc(constants.n * sizeof(short));
     for (int i = 0; i < constants.n; i++) {
         params.spins[i] = (double_r250() < 0.5 ? 1 : -1);
     }
@@ -109,9 +100,9 @@ int main (int argc, char *argv[]) {
     /* for (int i = 0; i < 100; ++i) */
     /*     mc_sweep(); */
 
-    double Jsum = 0.0;
+    double jsum = 0.0;
     for (int i = 0; i < constants.nb; ++i)
-        Jsum += (params.bonds[i].val < 0 ? -params.bonds[i].val : params.bonds[i].val);
+        jsum += (params.bonds[i].val < 0 ? -params.bonds[i].val : params.bonds[i].val);
 
     for (int j = 0; j <= tau; ++j) {
         params.hx          = init_hx * (1 - ((double)j / tau)) + final_hx * ((double)j / tau);
@@ -122,8 +113,8 @@ int main (int argc, char *argv[]) {
 
         const int nb = constants.nb, n = constants.n;
 
-        params.pa1 = (2. * Jsum + hx * (double)(n)) * beta;
-        params.pa2 = 2 * Jsum / (2. * Jsum + hx * (double)(n));
+        params.pa1 = (2. * jsum + hx * (double)(n)) * beta;
+        params.pa2 = 2 * jsum / (2. * jsum + hx * (double)(n));
 
         mc_sweep(&params, constants);
         measure_energy(&params, constants, j);
@@ -138,7 +129,7 @@ void measure_energy (params_t *p, constants_t c, int stp) {
     bond_t *bonds = p->bonds;
     short *spins  = p->spins;
 
-    const int l = c.l, n = c.n, nb = c.nb, m = c.m, tau = c.tau;
+    const int n = c.n, nb = c.nb, m = c.m, tau = c.tau;
 
     double eng = 0.0;
     for (int b = 0; b < nb; b++) {
@@ -158,11 +149,14 @@ void measure_energy (params_t *p, constants_t c, int stp) {
 }
 
 /* Read the input file and set the number of sites and bonds */
-void input_reader (FILE *source, bond_t *bonds, int *n, int *nb) {
-    double values[3]           = { 0.0 }; // 1 to 3 value(s) per line
+bond_t *input_reader (FILE *source, int *n, int *nb) {
+    int capacity  = 500;
+    bond_t *bonds = (bond_t *)malloc(capacity * sizeof(bond_t));
+
+    double values[3]           = { 0.0 }; /* 1 to 3 value(s) per line */
     char line[MAX_LINE_LENGTH] = { 0 };
-    int k                      = 0;
-    int max_site               = 0;
+    int k                      = 0; /* Number of bonds */
+    int max_site               = 0; /* Number of sites */
 
     for (int i = 0; i < *nb; ++i) {
         bonds[i].site1 = -1;
@@ -181,6 +175,10 @@ void input_reader (FILE *source, bond_t *bonds, int *n, int *nb) {
         max_site       = (i > max_site ? i : max_site);
         max_site       = (j > max_site ? j : max_site);
         ++k;
+        if (k == capacity - 2) {
+            capacity *= 2;
+            bonds = (bond_t *)realloc(bonds, capacity * sizeof(bond_t));
+        }
     }
 
     *n  = max_site + 1; /* Number of sites */
@@ -189,4 +187,6 @@ void input_reader (FILE *source, bond_t *bonds, int *n, int *nb) {
     for (int i = 0; i < k; ++i) {
         printf("%d\t\t%d\t%d\t%f\n", i, bonds[i].site1, bonds[i].site2, bonds[i].val);
     }
+
+    return bonds;
 }
