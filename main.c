@@ -12,7 +12,7 @@
 /* TODO: Add one column & two column support */
 
 void measure_energy(params_t *, constants_t, int);
-bond_t *input_reader(FILE *source, int *n, int *nb);
+void input_reader(FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb);
 
 /* Deprecated */
 void default_setup (bond_t *bonds, short *spins, oper_t *opers, int l, int n, int m) {
@@ -83,7 +83,8 @@ int main (int argc, char *argv[]) {
     }
 
     /* Returned pointer should be freed */
-    params.bonds = input_reader(fptr, &constants.n, &constants.nb);
+    input_reader(fptr, &params.bonds, &params.lcoeffs, &params.constant, &constants.n,
+                 &constants.nb);
     fclose(fptr);
     constants.m  = constants.n * 5000;
     params.opers = (oper_t *)malloc(constants.m * sizeof(oper_t));
@@ -95,6 +96,8 @@ int main (int argc, char *argv[]) {
         params.opers[i].type = IDENT;
     }
     /* default_setup(params.bonds, params.spins, params.opers, l, n, m); */
+
+    /* exit(0); */
 
     /* Warm up */
     /* for (int i = 0; i < 100; ++i) */
@@ -149,14 +152,18 @@ void measure_energy (params_t *p, constants_t c, int stp) {
 }
 
 /* Read the input file and set the number of sites and bonds */
-bond_t *input_reader (FILE *source, int *n, int *nb) {
+void input_reader (FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb) {
     int capacity  = 500;
     bond_t *bonds = (bond_t *)malloc(capacity * sizeof(bond_t));
+
+    int l_cap               = 500;
+    lcoeff_t *linear_coeffs = (lcoeff_t *)malloc(l_cap * sizeof(lcoeff_t));
 
     double values[3]           = { 0.0 }; /* 1 to 3 value(s) per line */
     char line[MAX_LINE_LENGTH] = { 0 };
     int k                      = 0; /* Number of bonds */
     int max_site               = 0; /* Number of sites */
+    int lc                     = 0; /* Number of linear coefficients */
 
     for (int i = 0; i < *nb; ++i) {
         bonds[i].site1 = -1;
@@ -165,28 +172,55 @@ bond_t *input_reader (FILE *source, int *n, int *nb) {
     }
 
     while (fgets(line, MAX_LINE_LENGTH, source)) {
-        int count      = sscanf(line, "%lf %lf %lf", &values[0], &values[1], &values[2]);
-        int i          = (int)values[0];
-        int j          = (int)values[1];
-        double val     = values[2];
-        bonds[k].site1 = i;
-        bonds[k].site2 = j;
-        bonds[k].val   = val;
-        max_site       = (i > max_site ? i : max_site);
-        max_site       = (j > max_site ? j : max_site);
-        ++k;
+        int count = sscanf(line, "%lf %lf %lf", &values[0], &values[1], &values[2]);
+        printf("%d\n", count);
+        int i, j;
+        double val;
+        switch (count) {
+            case 3:
+                bonds[k].site1 = (int)values[0];
+                bonds[k].site2 = (int)values[1];
+                bonds[k].val   = values[2];
+                ++k;
+                break;
+            case 2:
+                linear_coeffs[k].site = (int)values[0];
+                linear_coeffs[k].val  = values[1];
+                ++lc;
+                break;
+            case 1: *c += values[0]; break;
+            default: fprintf(stderr, "Invalid input file\n"); break;
+        }
+        /* int i          = (int)values[0]; */
+        /* int j          = (int)values[1]; */
+        /* double val     = values[2]; */
+        /* bonds[k].site1 = i; */
+        /* bonds[k].site2 = j; */
+        /* bonds[k].val   = val; */
+        /* max_site       = (i > max_site ? i : max_site); */
+        /* max_site       = (j > max_site ? j : max_site); */
+        /* ++k; */
         if (k == capacity - 2) {
             capacity *= 2;
             bonds = (bond_t *)realloc(bonds, capacity * sizeof(bond_t));
         }
+        if (lc == l_cap - 2) {
+            l_cap         = l_cap * 2;
+            linear_coeffs = (lcoeff_t *)realloc(linear_coeffs, l_cap * sizeof(lcoeff_t));
+        }
+    }
+
+    for (int i = 0; i < k; ++i) {
+        max_site = (bonds[i].site1 > max_site ? bonds[i].site1 : max_site);
+        max_site = (bonds[i].site2 > max_site ? bonds[i].site2 : max_site);
     }
 
     *n  = max_site + 1; /* Number of sites */
     *nb = k;            /* Number of bonds */
+    *b  = bonds;
+    *l  = linear_coeffs;
 
     for (int i = 0; i < k; ++i) {
         printf("%d\t\t%d\t%d\t%f\n", i, bonds[i].site1, bonds[i].site2, bonds[i].val);
     }
-
-    return bonds;
 }

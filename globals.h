@@ -11,12 +11,20 @@ typedef struct {
     double val;
 } bond_t;
 
+/* Linear coefficients */
+typedef struct {
+    int site;
+    double val;
+} lcoeff_t;
+
 typedef struct {
     int ni;
     double hx, j, beta;
     double pa1, pa2;
     oper_t *opers;
     bond_t *bonds;
+    lcoeff_t *lcoeffs;
+    int constant;
     short *spins;
 } params_t;
 params_t params_init();
