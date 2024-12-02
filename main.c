@@ -12,7 +12,7 @@
 /* TODO: Add one column & two column support */
 
 void measure_energy(params_t *, constants_t, int);
-void input_reader(FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb);
+void input_reader(FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb, int *);
 
 /* Deprecated */
 void default_setup (bond_t *bonds, short *spins, oper_t *opers, int l, int n, int m) {
@@ -83,8 +83,9 @@ int main (int argc, char *argv[]) {
     }
 
     /* Returned pointer should be freed */
+    int lc_len = 0;
     input_reader(fptr, &params.bonds, &params.lcoeffs, &params.constant, &constants.n,
-                 &constants.nb);
+                 &constants.nb, &lc_len);
     fclose(fptr);
     constants.m  = constants.n * 5000;
     params.opers = (oper_t *)malloc(constants.m * sizeof(oper_t));
@@ -107,6 +108,11 @@ int main (int argc, char *argv[]) {
     for (int i = 0; i < constants.nb; ++i)
         jsum += (params.bonds[i].val < 0 ? -params.bonds[i].val : params.bonds[i].val);
 
+    double lcsum = 0.0;
+    for (int i = 0; i < lc_len; ++i) {
+        lcsum += (params.lcoeffs[i].val < 0 ? -params.lcoeffs[i].val : params.lcoeffs[i].val);
+    }
+
     for (int j = 0; j <= tau; ++j) {
         params.hx          = init_hx * (1 - ((double)j / tau)) + final_hx * ((double)j / tau);
         double temperature = init_t * (1 - ((double)j / tau)) + final_t * ((double)j / tau);
@@ -118,6 +124,11 @@ int main (int argc, char *argv[]) {
 
         params.pa1 = (2. * jsum + hx * (double)(n)) * beta;
         params.pa2 = 2 * jsum / (2. * jsum + hx * (double)(n));
+
+        /* const double updated_lcsum = lcsum * (1 - ((double)j / tau)); */
+
+        /* params.pa1 = (2. * jsum + hx * (double)(n) + updated_lcsum) * beta; */
+        /* params.pa2 = 2 * jsum / (2. * jsum + hx * (double)(n) + updated_lcsum); */
 
         mc_sweep(&params, constants);
         measure_energy(&params, constants, j);
@@ -138,7 +149,7 @@ void measure_energy (params_t *p, constants_t c, int stp) {
     for (int b = 0; b < nb; b++) {
         int i = bonds[b].site1;
         int j = bonds[b].site2;
-        eng += (spins[i] * spins[j] * bonds[b].val);
+        eng += (spins[i] * spins[j] * bonds[b].val); /* TODO: Add linear coefficients */
     }
 
     printf("%f\t%f\t%f\n", p->beta, p->hx, eng);
@@ -152,7 +163,7 @@ void measure_energy (params_t *p, constants_t c, int stp) {
 }
 
 /* Read the input file and set the number of sites and bonds */
-void input_reader (FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb) {
+void input_reader (FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb, int *lc_len) {
     int capacity  = 500;
     bond_t *bonds = (bond_t *)malloc(capacity * sizeof(bond_t));
 
@@ -215,10 +226,11 @@ void input_reader (FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *
         max_site = (bonds[i].site2 > max_site ? bonds[i].site2 : max_site);
     }
 
-    *n  = max_site + 1; /* Number of sites */
-    *nb = k;            /* Number of bonds */
-    *b  = bonds;
-    *l  = linear_coeffs;
+    *n      = max_site + 1; /* Number of sites */
+    *nb     = k;            /* Number of bonds */
+    *b      = bonds;
+    *l      = linear_coeffs;
+    *lc_len = lc;
 
     for (int i = 0; i < k; ++i) {
         printf("%d\t\t%d\t%d\t%f\n", i, bonds[i].site1, bonds[i].site2, bonds[i].val);

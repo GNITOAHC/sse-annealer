@@ -1,6 +1,6 @@
 #pragma once
 
-typedef enum { IDENT, HX, H, JJ } oper_type_t;
+typedef enum { IDENT, HX, H, JJ, LC } oper_type_t;
 typedef struct {
     oper_type_t type;
     int site, site1, site2; /* JJ uses site1 and site2, else uses site */
@@ -18,7 +18,7 @@ typedef struct {
 } lcoeff_t;
 
 typedef struct {
-    int ni;
+    int ni; /* NONE IDENT operator count */
     double hx, j, beta;
     double pa1, pa2;
     oper_t *opers;
