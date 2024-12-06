@@ -67,6 +67,7 @@ int main (int argc, char *argv[]) {
         .init_hx  = init_hx,
         .final_t  = final_t,
         .init_t   = init_t,
+        .lc_len   = 0, /* Number of linear coefficients */
     };
 
     /*
@@ -87,9 +88,10 @@ int main (int argc, char *argv[]) {
     input_reader(fptr, &params.bonds, &params.lcoeffs, &params.constant, &constants.n,
                  &constants.nb, &lc_len);
     fclose(fptr);
-    constants.m  = constants.n * 5000;
-    params.opers = (oper_t *)malloc(constants.m * sizeof(oper_t));
-    params.spins = (short *)malloc(constants.n * sizeof(short));
+    constants.lc_len = lc_len;
+    constants.m      = constants.n * 5000;
+    params.opers     = (oper_t *)malloc(constants.m * sizeof(oper_t));
+    params.spins     = (short *)malloc(constants.n * sizeof(short));
     for (int i = 0; i < constants.n; i++) {
         params.spins[i] = (double_r250() < 0.5 ? 1 : -1);
     }
@@ -124,11 +126,6 @@ int main (int argc, char *argv[]) {
 
         params.pa1 = (2. * jsum + hx * (double)(n)) * beta;
         params.pa2 = 2 * jsum / (2. * jsum + hx * (double)(n));
-
-        /* const double updated_lcsum = lcsum * (1 - ((double)j / tau)); */
-
-        /* params.pa1 = (2. * jsum + hx * (double)(n) + updated_lcsum) * beta; */
-        /* params.pa2 = 2 * jsum / (2. * jsum + hx * (double)(n) + updated_lcsum); */
 
         mc_sweep(&params, constants);
         measure_energy(&params, constants, j);
@@ -184,7 +181,7 @@ void input_reader (FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *
 
     while (fgets(line, MAX_LINE_LENGTH, source)) {
         int count = sscanf(line, "%lf %lf %lf", &values[0], &values[1], &values[2]);
-        printf("%d\n", count);
+        /* printf("%d\n", count); */
         int i, j;
         double val;
         switch (count) {
@@ -195,22 +192,13 @@ void input_reader (FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *
                 ++k;
                 break;
             case 2:
-                linear_coeffs[k].site = (int)values[0];
-                linear_coeffs[k].val  = values[1];
+                linear_coeffs[lc].site = (int)values[0];
+                linear_coeffs[lc].val  = values[1];
                 ++lc;
                 break;
             case 1: *c += values[0]; break;
             default: fprintf(stderr, "Invalid input file\n"); break;
         }
-        /* int i          = (int)values[0]; */
-        /* int j          = (int)values[1]; */
-        /* double val     = values[2]; */
-        /* bonds[k].site1 = i; */
-        /* bonds[k].site2 = j; */
-        /* bonds[k].val   = val; */
-        /* max_site       = (i > max_site ? i : max_site); */
-        /* max_site       = (j > max_site ? j : max_site); */
-        /* ++k; */
         if (k == capacity - 2) {
             capacity *= 2;
             bonds = (bond_t *)realloc(bonds, capacity * sizeof(bond_t));
@@ -231,6 +219,10 @@ void input_reader (FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *
     *b      = bonds;
     *l      = linear_coeffs;
     *lc_len = lc;
+
+    for (int i = 0; i < *lc_len; ++i) {
+        printf("lc_len: %d\t%d\t%f\n", i, linear_coeffs[i].site, linear_coeffs[i].val);
+    }
 
     for (int i = 0; i < k; ++i) {
         printf("%d\t\t%d\t%d\t%f\n", i, bonds[i].site1, bonds[i].site2, bonds[i].val);

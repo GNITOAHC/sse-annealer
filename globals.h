@@ -32,4 +32,5 @@ params_t params_init();
 typedef struct {
     int n, nb, m, tau;
     double final_hx, init_hx, final_t, init_t;
+    int lc_len;
 } constants_t;
