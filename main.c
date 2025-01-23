@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "argp.h"
 #include "globals.h"
@@ -39,18 +40,73 @@ void default_setup (bond_t *bonds, short *spins, oper_t *opers, int l, int n, in
     }
 }
 
+int countlines (char *filename) {
+    // count the number of lines in the file called filename
+    FILE *fp  = fopen(filename, "r");
+    int ch    = 0;
+    int lines = 0;
+
+    if (fp == NULL)
+        ;
+    return 0;
+
+    lines++;
+    while ((ch = fgetc(fp)) != EOF) {
+        if (ch == '\n') lines++;
+    }
+    fclose(fp);
+    return lines;
+}
+
+static double *path_t  = NULL;
+static double *path_hx = NULL;
+
 int main (int argc, char *argv[]) {
-    /* Default arguments */
-    args_t args = (args_t) {
-        .qubo       = 0,    /* Currently not supported */
-        .input_file = NULL, /* Currently not supported */
-        .init_t     = 0.5,
-        .final_t    = 0.000001,
-        .init_hx    = 2.0,
-        .final_hx   = 0.0,
-        .tau        = 4096,
-    };
+    args_t args = args_default();
     args_parse(argc, argv, &args);
+
+    int bool_use_path = 0;
+
+    FILE *cfgfptr = fopen("path.txt", "r");
+    if (cfgfptr == NULL) {
+        /* perror("fopen"); */
+        /* exit(0); */
+    }
+    char cfgline[1000] = { 0 };
+    double _path_t     = { 0.0 };
+    double _path_hx    = { 0.0 };
+    int ch = 0, lines = 0;
+    while (cfgfptr != NULL && !feof(cfgfptr)) {
+        ch = fgetc(cfgfptr);
+        if (ch == '\n') { lines++; }
+    }
+    fclose(cfgfptr);
+    cfgfptr = fopen("path.txt", "r");
+    if (lines > 0) args.tau = lines;
+    /* printf("Line count: %d\n", lines); */
+    int current_line = 0;
+    while (cfgfptr != NULL && fgets(cfgline, lines, cfgfptr)) {
+        int count = sscanf(cfgline, "%lf %lf", &_path_t, &_path_hx);
+
+        if (path_t == NULL && path_hx == NULL) {
+            path_t  = (double *)malloc((args.tau + 10) * sizeof(double));
+            path_hx = (double *)malloc((args.tau + 10) * sizeof(double));
+            printf("Allocated memory\n");
+        }
+
+        path_t[current_line]  = _path_t;
+        path_hx[current_line] = _path_hx;
+
+        ++current_line;
+    }
+    fclose(cfgfptr);
+
+    if (lines > 0) printf("Path: %f\t%f\n", _path_t, _path_hx);
+
+    /* for (int i = 0; i < args.tau; ++i) { */
+    /*     printf("%f\t%f\n", path_t[i], path_hx[i]); */
+    /* } */
+    if (lines > 0) bool_use_path = 1;
 
     double init_t   = args.init_t;
     double final_t  = args.final_t;
@@ -77,26 +133,40 @@ int main (int argc, char *argv[]) {
      */
     params_t params = params_init();
 
-    FILE *fptr = fopen(args.input_file, "r");
-    if (fptr == NULL) {
-        perror("fopen");
-        exit(0);
-    }
-
-    /* Returned pointer should be freed */
     int lc_len = 0;
-    input_reader(fptr, &params.bonds, &params.lcoeffs, &params.constant, &constants.n,
-                 &constants.nb, &lc_len);
-    fclose(fptr);
-    constants.lc_len = lc_len;
-    constants.m      = constants.n * 5000;
-    params.opers     = (oper_t *)malloc(constants.m * sizeof(oper_t));
-    params.spins     = (short *)malloc(constants.n * sizeof(short));
-    for (int i = 0; i < constants.n; i++) {
-        params.spins[i] = (double_r250() < 0.5 ? 1 : -1);
-    }
-    for (int i = 0; i < constants.m; i++) {
-        params.opers[i].type = IDENT;
+    if (args.tri_l != 0) {
+        const int l  = args.tri_l;
+        const int n  = l * l;
+        const int m  = n * 5000;
+        params.bonds = (bond_t *)malloc(n * 3 * sizeof(bond_t));
+        params.spins = (short *)malloc(n * sizeof(short));
+        params.opers = (oper_t *)malloc(m * sizeof(oper_t));
+        default_setup(params.bonds, params.spins, params.opers, l, n, m);
+        constants.nb = n * 3;
+        constants.n  = n;
+        constants.m  = m;
+    } else {
+        FILE *fptr = fopen(args.input_file, "r");
+        if (fptr == NULL) {
+            perror("fopen");
+            exit(0);
+        }
+
+        /* Returned pointer should be freed */
+        lc_len = 0;
+        input_reader(fptr, &params.bonds, &params.lcoeffs, &params.constant, &constants.n,
+                     &constants.nb, &lc_len);
+        fclose(fptr);
+        constants.lc_len = lc_len;
+        constants.m      = constants.n * 5000;
+        params.opers     = (oper_t *)malloc(constants.m * sizeof(oper_t));
+        params.spins     = (short *)malloc(constants.n * sizeof(short));
+        for (int i = 0; i < constants.n; i++) {
+            params.spins[i] = (double_r250() < 0.5 ? 1 : -1);
+        }
+        for (int i = 0; i < constants.m; i++) {
+            params.opers[i].type = IDENT;
+        }
     }
     /* default_setup(params.bonds, params.spins, params.opers, l, n, m); */
 
@@ -115,24 +185,45 @@ int main (int argc, char *argv[]) {
         lcsum += (params.lcoeffs[i].val < 0 ? -params.lcoeffs[i].val : params.lcoeffs[i].val);
     }
 
-    for (int j = 0; j <= tau; ++j) {
+    for (int j = 0; j < tau; ++j) {
         params.hx          = init_hx * (1 - ((double)j / tau)) + final_hx * ((double)j / tau);
         double temperature = init_t * (1 - ((double)j / tau)) + final_t * ((double)j / tau);
-        params.beta        = 1.0 / temperature;
+
+        if (bool_use_path) { /* Use path.txt configuration */
+            temperature = path_t[j];
+            params.hx   = path_hx[j];
+        }
+
+        params.beta = 1.0 / temperature;
 
         const double hx = params.hx, beta = params.beta;
-
         const int nb = constants.nb, n = constants.n;
 
-        params.pa1 = (2. * jsum + hx * (double)(n)) * beta;
-        params.pa2 = 2 * jsum / (2. * jsum + hx * (double)(n));
+        /* params.pa1 = (2. * jsum + hx * (double)(n)) * beta; */
+        /* params.pa2 = 2 * jsum / (2. * jsum + hx * (double)(n)); */
+        params.pa1 = (2. * jsum + hx * (double)(n - lc_len)) * beta;
+        params.pa2 = 2 * jsum / (2. * jsum + hx * (double)(n - lc_len));
 
         mc_sweep(&params, constants);
         measure_energy(&params, constants, j);
     }
 
+    if (args.print_conf) {
+        for (int i = 0; i < constants.n; ++i) {
+            printf("%d\t%d\n", i, params.spins[i]);
+        }
+    }
+
     clean_up(params.spins, params.opers, params.bonds, NULL);
     return 0;
+}
+
+/* If the site is present in the lcoeffs, return the value */
+static int check_lcoeffs (lcoeff_t *lcoeffs, size_t n, const int site) {
+    for (int i = 0; i < n; ++i) {
+        if (lcoeffs[i].site == site) return lcoeffs[i].val;
+    }
+    return -1;
 }
 
 void measure_energy (params_t *p, constants_t c, int stp) {
@@ -147,14 +238,19 @@ void measure_energy (params_t *p, constants_t c, int stp) {
         int i = bonds[b].site1;
         int j = bonds[b].site2;
         eng += (spins[i] * spins[j] * bonds[b].val); /* TODO: Add linear coefficients */
+        if (check_lcoeffs(p->lcoeffs, c.lc_len, i) != -1) {
+            eng += spins[i] * check_lcoeffs(p->lcoeffs, c.lc_len, i);
+        }
     }
 
-    printf("%f\t%f\t%f\n", p->beta, p->hx, eng);
+    /* printf("%f\t%f\t%f\n", p->beta, p->hx, eng); */
+    printf("%f\t%f\t%f\n", 1 / p->beta, p->hx, eng);
     if (stp == tau) {
+        /* Print the final state */
         for (int b = 0; b < nb; ++b) {
             int i = bonds[b].site1, j = bonds[b].site2;
-            printf("%d(%d)\t%d(%d)\t%f\t%f\t%f\n", spins[i], i, spins[j], j, bonds[b].val,
-                   (spins[i] * spins[j] * bonds[b].val), eng);
+            /* printf("%d(%d)\t%d(%d)\t%f\t%f\t%f\n", spins[i], i, spins[j], j, bonds[b].val, */
+            /*        (spins[i] * spins[j] * bonds[b].val), eng); */
         }
     }
 }
