@@ -69,9 +69,13 @@ void diagonal_update (params_t *p, constants_t c) {
         switch (opers[p].type) {
             case IDENT:
                 if (double_r250() * (double)(m - *ni) > pa1) break; /* Do not insert operator */
-                if (double_r250() > pa2) {                          /* Insert H operator */
-                    if (check_lcoeffs(lcoeffs, lc_len, p) > hx) break;
+                /* if (check_lcoeffs(lcoeffs, lc_len, p) > hx) break; */
+
+                if (double_r250() > pa2) { /* Insert H operator */
+
                     /* Only insert H operator if the site's coefficient is less than hx */
+                    /* if (check_lcoeffs(lcoeffs, lc_len, p) != -1) break; */
+
                     opers[p].type = H;
                     opers[p].site = (int)(double_r250() * n);
                     *ni += 1;
