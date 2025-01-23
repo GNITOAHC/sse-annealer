@@ -3,6 +3,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+args_t args_default () {
+    args_t args = {
+        .qubo       = 0, /* Currently not implemented */
+        .input_file = NULL,
+        .init_t     = 0.5,
+        .final_t    = 0.000001,
+        .init_hx    = 2.0,
+        .final_hx   = 0.0,
+        .tau        = 2048,
+        .print_conf = 0,
+        .tri_l      = 0,
+    };
+    return args;
+}
+
 void args_parse (int argc, char **argv, args_t *d) {
     int opt = 0, opt_index = 0;
     int valid = 1;
@@ -24,6 +39,8 @@ void args_parse (int argc, char **argv, args_t *d) {
             case 'x': args->init_hx = atof(optarg); break;
             case 'X': args->final_hx = atof(optarg); break;
             case 's': args->tau = atoi(optarg); break;
+            case 'p': args->print_conf = 1; break;
+            case 'l': args->tri_l = atoi(optarg); break;
             case '?': valid = 0; break;
             default: printf("opt = %d\n", opt); break;
         }
