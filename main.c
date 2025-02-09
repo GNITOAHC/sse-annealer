@@ -72,9 +72,9 @@ int main (int argc, char *argv[]) {
         /* perror("fopen"); */
         /* exit(0); */
     }
-    char cfgline[1000] = { 0 };
-    double _path_t     = { 0.0 };
-    double _path_hx    = { 0.0 };
+    char cfgline[MAX_LINE_LENGTH] = { 0 };
+    double _path_t                = { 0.0 };
+    double _path_hx               = { 0.0 };
     int ch = 0, lines = 0;
     while (cfgfptr != NULL && !feof(cfgfptr)) {
         ch = fgetc(cfgfptr);
@@ -85,7 +85,7 @@ int main (int argc, char *argv[]) {
     if (lines > 0) args.tau = lines;
     /* printf("Line count: %d\n", lines); */
     int current_line = 0;
-    while (cfgfptr != NULL && fgets(cfgline, lines, cfgfptr)) {
+    while (cfgfptr != NULL && fgets(cfgline, MAX_LINE_LENGTH, cfgfptr)) {
         int count = sscanf(cfgline, "%lf %lf", &_path_t, &_path_hx);
 
         if (path_t == NULL && path_hx == NULL) {
