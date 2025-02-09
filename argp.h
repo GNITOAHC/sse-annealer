@@ -40,9 +40,9 @@ static char help_message[]    = "Usage: %s [OPTION]...\n"
                                 "  -f, --file       Input file path\n"
                                 "  -t, --init-t     Initial temperature\n"
                                 "  -T, --final-t    Final temperature\n"
-                                "  -h, --init-hx    Initial Hamiltonian\n"
-                                "  -H, --final-hx   Final Hamiltonian\n"
-                                "  -x, --tau        Tau\n"
+                                "  -x, --init-hx    Initial Hamiltonian\n"
+                                "  -X, --final-hx   Final Hamiltonian\n"
+                                "  -s, --tau        Tau\n"
                                 "  -p, --print-conf Print final configuration\n"
                                 "  -l. --tri-l      Default triangular setup\n";
 
