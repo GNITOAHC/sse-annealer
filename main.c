@@ -80,7 +80,8 @@ int main (int argc, char *argv[]) {
         ch = fgetc(cfgfptr);
         if (ch == '\n') { lines++; }
     }
-    fclose(cfgfptr);
+    if (cfgfptr != NULL) fclose(cfgfptr);
+
     cfgfptr = fopen("path.txt", "r");
     if (lines > 0) args.tau = lines;
     /* printf("Line count: %d\n", lines); */
@@ -99,7 +100,7 @@ int main (int argc, char *argv[]) {
 
         ++current_line;
     }
-    fclose(cfgfptr);
+    if (cfgfptr != NULL) fclose(cfgfptr);
 
     if (lines > 0) printf("Path: %f\t%f\n", _path_t, _path_hx);
 
