@@ -170,6 +170,20 @@ int main (int argc, char *argv[]) {
         }
     }
     /* default_setup(params.bonds, params.spins, params.opers, l, n, m); */
+    if (args.spin_conf != NULL) {
+        FILE *fptr = fopen(args.spin_conf, "r");
+        if (fptr == NULL) {
+            perror("fopen");
+            exit(0);
+        }
+        char line[MAX_LINE_LENGTH] = { 0 };
+        while (fgets(line, MAX_LINE_LENGTH, fptr)) {
+            int idx = 0, spin = 0;
+            sscanf(line, "%d %d", &idx, &spin);
+            params.spins[idx] = spin;
+        }
+        fclose(fptr);
+    }
 
     /* exit(0); */
 

@@ -14,6 +14,8 @@ typedef struct {
     int print_conf;
     /* Triangular setup if used */
     int tri_l;
+    /* Initialize spins from file */
+    char *spin_conf;
 } args_t;
 
 static struct option long_options[] = {
@@ -28,9 +30,10 @@ static struct option long_options[] = {
     {        "tau", required_argument, 0, 's' },
     { "print-conf",       no_argument, 0, 'p' },
     {      "tri-l", required_argument, 0, 'l' },
+    {  "spin-conf", required_argument, 0, 'c' },
     {            0,                 0, 0,   0 }
 };
-static char short_options[] = "hvqf:t:T:x:X:s:pl:";
+static char short_options[] = "hvqf:t:T:x:X:s:pl:c:";
 
 static char version_message[] = "SSE v0.1\n";
 static char help_message[]    = "Usage: %s [OPTION]...\n"
@@ -44,7 +47,8 @@ static char help_message[]    = "Usage: %s [OPTION]...\n"
                                 "  -X, --final-hx   Final Hamiltonian\n"
                                 "  -s, --tau        Tau\n"
                                 "  -p, --print-conf Print final configuration\n"
-                                "  -l. --tri-l      Default triangular setup\n";
+                                "  -l, --tri-l      Default triangular setup\n"
+                                "  -c, --spin-conf  Initialize spins from file\n";
 
 args_t args_default();
 void args_parse(int argc, char **argv, args_t *d);
