@@ -179,7 +179,8 @@ int main (int argc, char *argv[]) {
         char line[MAX_LINE_LENGTH] = { 0 };
         while (fgets(line, MAX_LINE_LENGTH, fptr)) {
             int idx = 0, spin = 0;
-            sscanf(line, "%d %d", &idx, &spin);
+            int count = sscanf(line, "%d %d", &idx, &spin);
+            if (count != 2) continue;
             params.spins[idx] = spin;
         }
         fclose(fptr);
