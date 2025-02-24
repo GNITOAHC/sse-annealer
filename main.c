@@ -6,13 +6,12 @@
 #include "argp.h"
 #include "globals.h"
 #include "mc.h"
+#include "printer.h"
 #include "util.h"
 
 #define MAX_LINE_LENGTH 256
 
-/* TODO: Add one column & two column support */
-
-void measure_energy(params_t *, constants_t, int);
+double measure_energy(params_t *, constants_t, int);
 void input_reader(FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb, int *);
 
 /* Deprecated */
@@ -225,9 +224,16 @@ int main (int argc, char *argv[]) {
     }
 
     if (args.print_conf) {
-        for (int i = 0; i < constants.n; ++i) {
-            printf("%d\t%d\n", i, params.spins[i]);
+        /* for (int i = 0; i < constants.n; ++i) { */
+        /*     printf("%d\t%d\n", i, params.spins[i]); */
+        /* } */
+        FILE *fptr = fopen(args.input_file, "r");
+        if (fptr == NULL) {
+            perror("fopen");
+            exit(0);
         }
+        const double final_eng = measure_energy(&params, constants, constants.tau);
+        print_spins(fptr, constants.n, params.spins, final_eng);
     }
 
     clean_up(params.spins, params.opers, params.bonds, NULL);
@@ -242,7 +248,7 @@ static int check_lcoeffs (lcoeff_t *lcoeffs, size_t n, const int site) {
     return -1;
 }
 
-void measure_energy (params_t *p, constants_t c, int stp) {
+double measure_energy (params_t *p, constants_t c, int stp) {
     oper_t *opers = p->opers;
     bond_t *bonds = p->bonds;
     short *spins  = p->spins;
@@ -269,6 +275,8 @@ void measure_energy (params_t *p, constants_t c, int stp) {
             /*        (spins[i] * spins[j] * bonds[b].val), eng); */
         }
     }
+
+    return eng;
 }
 
 /* Read the input file and set the number of sites and bonds */

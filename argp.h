@@ -46,7 +46,7 @@ static char help_message[]    = "Usage: %s [OPTION]...\n"
                                 "  -x, --init-hx    Initial field\n"
                                 "  -X, --final-hx   Final field\n"
                                 "  -s, --tau        Tau\n"
-                                "  -p, --print-conf Print final configuration\n"
+                                "  -p, --print-conf Print final spin configuration to spin_conf.out\n"
                                 "  -l, --tri-l      Default triangular setup\n"
                                 "  -c, --spin-conf  Initialize spins from file\n";
 
