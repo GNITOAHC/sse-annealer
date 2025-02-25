@@ -13,6 +13,9 @@ void print_spins (FILE *fptr, const int n, const short *const spins, const doubl
 
     while (fgets(line, 256, fptr)) {
         int count = sscanf(line, "%lf %lf %lf", &values[0], &values[1], &values[2]);
+
+        if (line[0] == '#') continue; /* Skip comments */
+
         switch (count) {
             case 3:
                 spins_tmp[(int)values[0]] = spins[(int)values[0]];
