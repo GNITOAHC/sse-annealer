@@ -183,6 +183,10 @@ int main (int argc, char *argv[]) {
             params.spins[idx] = spin;
         }
         fclose(fptr);
+
+        params.beta = 1.0 / init_t; /* Initialize beta */
+        const double init_eng = measure_energy(&params, constants, 0);
+        printf("Initial energy: %f\n", init_eng);
     }
 
     /* exit(0); */
@@ -340,11 +344,11 @@ void input_reader (FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *
     *l      = linear_coeffs;
     *lc_len = lc;
 
-    for (int i = 0; i < *lc_len; ++i) {
-        printf("lc_len: %d\t%d\t%f\n", i, linear_coeffs[i].site, linear_coeffs[i].val);
-    }
+    /* for (int i = 0; i < *lc_len; ++i) { */
+    /*     printf("lc_len: %d\t%d\t%f\n", i, linear_coeffs[i].site, linear_coeffs[i].val); */
+    /* } */
 
-    for (int i = 0; i < k; ++i) {
-        printf("%d\t\t%d\t%d\t%f\n", i, bonds[i].site1, bonds[i].site2, bonds[i].val);
-    }
+    /* for (int i = 0; i < k; ++i) { */
+    /*     printf("%d\t\t%d\t%d\t%f\n", i, bonds[i].site1, bonds[i].site2, bonds[i].val); */
+    /* } */
 }
