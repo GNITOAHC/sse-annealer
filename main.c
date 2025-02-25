@@ -301,7 +301,7 @@ void input_reader (FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *
 
     while (fgets(line, MAX_LINE_LENGTH, source)) {
         int count = sscanf(line, "%lf %lf %lf", &values[0], &values[1], &values[2]);
-        /* printf("%d\n", count); */
+        if (line[0] == '#') continue;
         int i, j;
         double val;
         switch (count) {
