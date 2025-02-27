@@ -14,31 +14,6 @@
 double measure_energy(params_t *, constants_t, int);
 void input_reader(FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb, int *);
 
-/* Deprecated */
-void default_setup (bond_t *bonds, short *spins, oper_t *opers, int l, int n, int m) {
-    for (int i = 0; i < n; i++) {
-        bonds[i].site1 = i;
-        bonds[i].site2 = (int)(i / l) * l + (i + 1) % l;
-    }
-    for (int i = n; i < n * 2; i++) {
-        bonds[i].site1 = i % n;
-        bonds[i].site2 = (bonds[i].site1 + l) % n;
-    }
-    for (int i = n * 2; i < n * 3; i++) {
-        bonds[i].site1 = i % n;
-        bonds[i].site2 = bonds[(i - l) % n].site2;
-    }
-    for (int i = 0; i < n * 3; i++) {
-        bonds[i].val = 1.0;
-    }
-    for (int i = 0; i < n; i++) {
-        spins[i] = (double_r250() < 0.5 ? 1 : -1);
-    }
-    for (int i = 0; i < m; i++) {
-        opers[i].type = IDENT;
-    }
-}
-
 int countlines (char *filename) {
     // count the number of lines in the file called filename
     FILE *fp  = fopen(filename, "r");
@@ -134,40 +109,28 @@ int main (int argc, char *argv[]) {
     params_t params = params_init();
 
     int lc_len = 0;
-    if (args.tri_l != 0) {
-        const int l  = args.tri_l;
-        const int n  = l * l;
-        const int m  = n * 5000;
-        params.bonds = (bond_t *)malloc(n * 3 * sizeof(bond_t));
-        params.spins = (short *)malloc(n * sizeof(short));
-        params.opers = (oper_t *)malloc(m * sizeof(oper_t));
-        default_setup(params.bonds, params.spins, params.opers, l, n, m);
-        constants.nb = n * 3;
-        constants.n  = n;
-        constants.m  = m;
-    } else {
-        FILE *fptr = fopen(args.input_file, "r");
-        if (fptr == NULL) {
-            perror("fopen");
-            exit(0);
-        }
-
-        /* Returned pointer should be freed */
-        lc_len = 0;
-        input_reader(fptr, &params.bonds, &params.lcoeffs, &params.constant, &constants.n,
-                     &constants.nb, &lc_len);
-        fclose(fptr);
-        constants.lc_len = lc_len;
-        constants.m      = constants.n * 5000;
-        params.opers     = (oper_t *)malloc(constants.m * sizeof(oper_t));
-        params.spins     = (short *)malloc(constants.n * sizeof(short));
-        for (int i = 0; i < constants.n; i++) {
-            params.spins[i] = (double_r250() < 0.5 ? 1 : -1);
-        }
-        for (int i = 0; i < constants.m; i++) {
-            params.opers[i].type = IDENT;
-        }
+    FILE *fptr = fopen(args.input_file, "r");
+    if (fptr == NULL) {
+        perror("fopen");
+        exit(0);
     }
+
+    /* Returned pointer should be freed */
+    lc_len = 0;
+    input_reader(fptr, &params.bonds, &params.lcoeffs, &params.constant, &constants.n,
+                 &constants.nb, &lc_len);
+    fclose(fptr);
+    constants.lc_len = lc_len;
+    constants.m      = constants.n * 5000;
+    params.opers     = (oper_t *)malloc(constants.m * sizeof(oper_t));
+    params.spins     = (short *)malloc(constants.n * sizeof(short));
+    for (int i = 0; i < constants.n; i++) {
+        params.spins[i] = (double_r250() < 0.5 ? 1 : -1);
+    }
+    for (int i = 0; i < constants.m; i++) {
+        params.opers[i].type = IDENT;
+    }
+
     /* default_setup(params.bonds, params.spins, params.opers, l, n, m); */
     if (args.spin_conf != NULL) {
         FILE *fptr = fopen(args.spin_conf, "r");
@@ -184,7 +147,7 @@ int main (int argc, char *argv[]) {
         }
         fclose(fptr);
 
-        params.beta = 1.0 / init_t; /* Initialize beta */
+        params.beta           = 1.0 / init_t; /* Initialize beta */
         const double init_eng = measure_energy(&params, constants, 0);
         printf("Initial energy: %f\n", init_eng);
     }

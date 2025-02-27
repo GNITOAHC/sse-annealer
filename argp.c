@@ -13,7 +13,6 @@ args_t args_default () {
         .final_hx   = 0.0,
         .tau        = 2048,
         .print_conf = 0,
-        .tri_l      = 0,
         .spin_conf  = NULL,
     };
     return args;
@@ -41,7 +40,6 @@ void args_parse (int argc, char **argv, args_t *d) {
             case 'X': args->final_hx = atof(optarg); break;
             case 's': args->tau = atoi(optarg); break;
             case 'p': args->print_conf = 1; break;
-            case 'l': args->tri_l = atoi(optarg); break;
             case 'c': args->spin_conf = optarg; break;
             case '?': valid = 0; break;
             default: printf("opt = %d\n", opt); break;
