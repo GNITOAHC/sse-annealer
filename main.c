@@ -200,7 +200,7 @@ int main (int argc, char *argv[]) {
             exit(0);
         }
         const double final_eng = measure_energy(&params, constants, constants.tau);
-        print_spins(fptr, constants.n, params.spins, final_eng, constants.init_t, constants.tau);
+        print_spins(fptr, constants.n, params.spins, final_eng, constants.init_t, constants.tau, constants.init_hx);
     }
 
     clean_up(params.spins, params.opers, params.bonds, NULL);

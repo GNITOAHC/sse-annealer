@@ -2,19 +2,19 @@
 #include "printer.h"
 #include "stdlib.h"
 
-static char *output_file (const int count, const double init_t, const int tau) {
+static char *output_file (const int count, const double init_t, const int tau, const double hx) {
     char *output = (char *)malloc(sizeof(char) * 50);
     if (output == NULL) {
         perror("malloc");
         return NULL;
     }
     int n;
-    n = snprintf(output, 50, "conf_N%d_T%f_tau%d.dat", count, init_t, tau);
+    n = snprintf(output, 50, "conf_N%d_X%.3f_T%.3f_tau%d.dat", count, hx, init_t, tau);
     return output;
 }
 
 void print_spins (FILE *fptr, const int n, const short *const spins, const double final_eng,
-                  const double init_t, const int tau) {
+                  const double init_t, const int tau, const double hx) {
     Deferral;
     /* Check the original input file (for skipping spins that aren't presenting) */
     double values[3] = { 0.0 }; /* 1 to 3 value(s) per line */
@@ -42,7 +42,7 @@ void print_spins (FILE *fptr, const int n, const short *const spins, const doubl
         }
     }
 
-    char *output = output_file(n, init_t, tau);
+    char *output = output_file(n, init_t, tau, hx);
     if (output == NULL) {
         perror("malloc");
         exit(0);
