@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "argp.h"
+#include "../include/argp.h"
+#include "../include/color.h"
+/* #include "argp.h" */
 #include "globals.h"
 #include "mc.h"
 #include "printer.h"
@@ -17,9 +19,81 @@ void input_reader(FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *n
 static double *path_t  = NULL;
 static double *path_hx = NULL;
 
+option_t options[] = {
+    {           "help",       no_argument,    0, 'h',      0,             "Display this help and exit" },
+    {        "version",       no_argument,    0, 'v',      0,   "Display version information and exit" },
+    {           "qubo",       no_argument,    0, 'q',      0,                        "Use QUBO format" },
+    {           "file", required_argument,    0, 'f', "FILE",                      "Input hamiltonian" },
+    {      "spin-conf", required_argument,    0, 'c', "FILE",             "Initialize spins from file" },
+    {      "path-conf", required_argument,    0, 'a', "FILE",              "Initialize path from file" },
+    {         "init-t", required_argument,    0, 't', "TEMP",                    "Initial temperature" },
+    {        "final-t", required_argument,    0, 'T', "TEMP",                      "Final temperature" },
+    {        "init-hx", required_argument,    0, 'x',   "HX",                          "Initial field" },
+    {       "final-hx", required_argument,    0, 'X',   "HX",                            "Final field" },
+    {            "tau", required_argument,    0, 's',  "TAU",                                    "Tau" },
+    {     "print-conf",       no_argument,    0, 'p',      0, "Print final spin configuration to file" },
+    { "print-progress",       no_argument,    0, 'P',      0,           "Print the annealing progress" },
+    {             NULL,                 0, NULL,   0,   NULL,                                     NULL },
+};
+
+typedef struct {
+    short qubo;
+    char *file, *spin_conf, *path_conf;
+    double init_t, final_t, init_hx, final_hx;
+    int tau;
+    int print_conf, print_progress;
+} args_t;
+
 int main (int argc, char *argv[]) {
-    args_t args = args_default();
-    args_parse(argc, argv, &args);
+    int opt = 0, opt_index = 0;
+    int valid = 1;
+
+    args_t args = {
+        .qubo           = 0,
+        .file           = NULL,
+        .spin_conf      = NULL,
+        .path_conf      = NULL,
+        .init_t         = 0.5,
+        .final_t        = 0.000001,
+        .init_hx        = 2.0,
+        .final_hx       = 0.0,
+        .tau            = 2048,
+        .print_conf     = 0,
+        .print_progress = 0,
+    };
+
+    struct option *long_options = long_opts(options);
+    char *short_options         = short_opts(options);
+    char *help_message          = help_mes(options);
+    char *version_message       = "0.1.0";
+
+    while ((opt = getopt_long(argc, argv, short_options, long_options, &opt_index)) != -1) {
+        switch (opt) {
+            case 'h': printf("%s\n", help_message); exit(1);
+            case 'v': printf("Version %s\n", version_message); exit(1);
+            case 'q': args.qubo = 1; break;
+            case 'f': args.file = optarg; break;
+            case 'c': args.spin_conf = optarg; break;
+            case 'a': args.path_conf = optarg; break;
+            case 't': args.init_t = atof(optarg); break;
+            case 'T': args.final_t = atof(optarg); break;
+            case 'x': args.init_hx = atof(optarg); break;
+            case 'X': args.final_hx = atof(optarg); break;
+            case 's': args.tau = atoi(optarg); break;
+            case 'p': args.print_conf = 1; break;
+            case 'P': args.print_progress = 1; break;
+            case '?': valid = 0; break;
+            default: printf("opt = %d\n", opt); break;
+        }
+    }
+    if (!valid) {
+        fprintf(stderr, RED "Invalid option\n");
+        exit(1);
+    }
+    free_options(long_options, short_options, help_message);
+
+    /* args_t args = args_default(); */
+    /* args_parse(argc, argv, &args); */
 
     int bool_use_path = 0;
 
@@ -91,7 +165,7 @@ int main (int argc, char *argv[]) {
     params_t params = params_init();
 
     int lc_len = 0;
-    FILE *fptr = fopen(args.input_file, "r");
+    FILE *fptr = fopen(args.file, "r");
     if (fptr == NULL) {
         perror("fopen");
         exit(0);
@@ -176,13 +250,14 @@ int main (int argc, char *argv[]) {
         /* for (int i = 0; i < constants.n; ++i) { */
         /*     printf("%d\t%d\n", i, params.spins[i]); */
         /* } */
-        FILE *fptr = fopen(args.input_file, "r");
+        FILE *fptr = fopen(args.file, "r");
         if (fptr == NULL) {
             perror("fopen");
             exit(0);
         }
         const double final_eng = measure_energy(&params, constants, constants.tau);
-        print_spins(fptr, constants.n, params.spins, final_eng, constants.init_t, constants.tau, constants.init_hx);
+        print_spins(fptr, constants.n, params.spins, final_eng, constants.init_t, constants.tau,
+                    constants.init_hx);
     }
 
     clean_up(params.spins, params.opers, params.bonds, NULL);
