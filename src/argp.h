@@ -14,6 +14,10 @@ typedef struct {
     int print_conf;
     /* Initialize spins from file */
     char *spin_conf;
+
+    /* Temporary */
+    char *file, *path_conf;
+    int print_progress;
 } args_t;
 
 static struct option long_options[] = {
