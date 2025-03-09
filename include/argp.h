@@ -143,4 +143,3 @@ static inline void free_options (struct option *long_opts, char *short_opts, cha
     free(short_opts);
     free(help_message);
 }
-
