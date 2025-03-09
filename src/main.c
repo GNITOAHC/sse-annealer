@@ -16,9 +16,6 @@
 double measure_energy(params_t *, constants_t, int);
 void input_reader(FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb, int *);
 
-static double *path_t  = NULL;
-static double *path_hx = NULL;
-
 option_t options[] = {
     {           "help",       no_argument,    0, 'h',      0,             "Display this help and exit" },
     {        "version",       no_argument,    0, 'v',      0,   "Display version information and exit" },
@@ -43,6 +40,47 @@ typedef struct {
     int tau;
     int print_conf, print_progress;
 } args_t;
+
+/* load_path_conf: Load path configuration from file, return {path_t, path_hx, tau} */
+static double **load_path_conf (char *filename) {
+    /* Get the number of lines in the file */
+    int *lines = (int *)malloc(sizeof(int)), tau = 0;
+    if ((*lines = count_file_lines(filename)) > 0) tau = *lines;
+    else {
+        free(lines);
+        return NULL;
+    }
+
+    /* Read the actual file as path configuration */
+    double *path_t = (double *)malloc((tau + 10) * sizeof(double));
+    if (path_t == NULL) {
+        free(lines);
+        return NULL;
+    }
+    double *path_hx = (double *)malloc((tau + 10) * sizeof(double));
+    if (path_hx == NULL) {
+        clean_up(path_t, lines, NULL);
+        return NULL;
+    }
+
+    FILE *fptr = fopen(filename, "r");
+
+    int current_line = 0, count = 0;
+    char cfgline[MAX_LINE_LENGTH] = { 0 };
+    double _path_t = 0.0, _path_hx = 0.0;
+
+    while (fptr != NULL && fgets(cfgline, MAX_LINE_LENGTH, fptr)) {
+        count = sscanf(cfgline, "%lf %lf", &_path_t, &_path_hx);
+
+        path_t[current_line]  = _path_t;
+        path_hx[current_line] = _path_hx;
+        ++current_line;
+    }
+    fclose(fptr);
+
+    double **path = (double *[]) { path_t, path_hx, (double *)lines };
+    return path;
+}
 
 int main (int argc, char *argv[]) {
     int opt = 0, opt_index = 0;
@@ -96,48 +134,19 @@ int main (int argc, char *argv[]) {
     /* args_parse(argc, argv, &args); */
 
     int bool_use_path = 0;
-
-    FILE *cfgfptr = fopen("path.txt", "r");
-    if (cfgfptr == NULL) {
-        /* perror("fopen"); */
-        /* exit(0); */
-    }
-    char cfgline[MAX_LINE_LENGTH] = { 0 };
-    double _path_t                = { 0.0 };
-    double _path_hx               = { 0.0 };
-    int ch = 0, lines = 0;
-    while (cfgfptr != NULL && !feof(cfgfptr)) {
-        ch = fgetc(cfgfptr);
-        if (ch == '\n') { lines++; }
-    }
-    if (cfgfptr != NULL) fclose(cfgfptr);
-
-    cfgfptr = fopen("path.txt", "r");
-    if (lines > 0) args.tau = lines;
-    /* printf("Line count: %d\n", lines); */
-    int current_line = 0;
-    while (cfgfptr != NULL && fgets(cfgline, MAX_LINE_LENGTH, cfgfptr)) {
-        int count = sscanf(cfgline, "%lf %lf", &_path_t, &_path_hx);
-
-        if (path_t == NULL && path_hx == NULL) {
-            path_t  = (double *)malloc((args.tau + 10) * sizeof(double));
-            path_hx = (double *)malloc((args.tau + 10) * sizeof(double));
-            printf("Allocated memory\n");
+    double *path_t = NULL, *path_hx = NULL;
+    if (args.path_conf != NULL) {
+        double **path = load_path_conf(args.path_conf);
+        if (path != NULL) {
+            path_t = path[0], path_hx = path[1];
+            args.tau = *((int *)path[2]);
+            free(path[2]);
+            bool_use_path = 1;
         }
-
-        path_t[current_line]  = _path_t;
-        path_hx[current_line] = _path_hx;
-
-        ++current_line;
     }
-    if (cfgfptr != NULL) fclose(cfgfptr);
-
-    if (lines > 0) printf("Path: %f\t%f\n", _path_t, _path_hx);
-
-    /* for (int i = 0; i < args.tau; ++i) { */
-    /*     printf("%f\t%f\n", path_t[i], path_hx[i]); */
-    /* } */
-    if (lines > 0) bool_use_path = 1;
+    if (bool_use_path)
+        printf("Using path configuration: %s, path_t[%d] = %f, path_hx[%d] = %f\n", args.path_conf,
+               args.tau, path_t[args.tau], args.tau, path_hx[args.tau]);
 
     double init_t   = args.init_t;
     double final_t  = args.final_t;
@@ -165,6 +174,10 @@ int main (int argc, char *argv[]) {
     params_t params = params_init();
 
     int lc_len = 0;
+    if (args.file == NULL) {
+        fprintf(stderr, RED "No input file provided\n");
+        exit(1);
+    }
     FILE *fptr = fopen(args.file, "r");
     if (fptr == NULL) {
         perror("fopen");
@@ -187,7 +200,6 @@ int main (int argc, char *argv[]) {
         params.opers[i].type = IDENT;
     }
 
-    /* default_setup(params.bonds, params.spins, params.opers, l, n, m); */
     if (args.spin_conf != NULL) {
         FILE *fptr = fopen(args.spin_conf, "r");
         if (fptr == NULL) {
@@ -203,12 +215,9 @@ int main (int argc, char *argv[]) {
         }
         fclose(fptr);
 
-        params.beta           = 1.0 / init_t; /* Initialize beta */
-        const double init_eng = measure_energy(&params, constants, 0);
-        printf("Initial energy: %f\n", init_eng);
+        params.beta = 1.0 / init_t; /* Initialize beta */
+        printf("Initial energy: %f\n", measure_energy(&params, constants, 0));
     }
-
-    /* exit(0); */
 
     /* Warm up */
     /* for (int i = 0; i < 100; ++i) */
@@ -245,6 +254,7 @@ int main (int argc, char *argv[]) {
         mc_sweep(&params, constants);
         measure_energy(&params, constants, j);
     }
+    clean_up(path_t, path_hx, NULL);
 
     if (args.print_conf) {
         /* for (int i = 0; i < constants.n; ++i) { */
