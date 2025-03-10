@@ -5,7 +5,6 @@
 
 #include "../include/argp.h"
 #include "../include/color.h"
-/* #include "argp.h" */
 #include "globals.h"
 #include "mc.h"
 #include "printer.h"
@@ -129,9 +128,6 @@ int main (int argc, char *argv[]) {
         exit(1);
     }
     free_options(long_options, short_options, help_message);
-
-    /* args_t args = args_default(); */
-    /* args_parse(argc, argv, &args); */
 
     int bool_use_path = 0;
     double *path_t = NULL, *path_hx = NULL;
