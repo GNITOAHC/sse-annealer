@@ -12,7 +12,8 @@
 
 #define MAX_LINE_LENGTH 256
 
-double measure_energy(params_t *, constants_t, int);
+/* int stp: Step number, short print_progress */
+double measure_energy(params_t *, constants_t, int, short);
 void input_reader(FILE *source, bond_t **b, lcoeff_t **l, int *c, int *n, int *nb, int *);
 
 option_t options[] = {
@@ -144,11 +145,9 @@ int main (int argc, char *argv[]) {
         printf("Using path configuration: %s, path_t[%d] = %f, path_hx[%d] = %f\n", args.path_conf,
                args.tau, path_t[args.tau], args.tau, path_hx[args.tau]);
 
-    double init_t   = args.init_t;
-    double final_t  = args.final_t;
-    double init_hx  = args.init_hx;
-    double final_hx = args.final_hx;
-    int tau         = args.tau;
+    double init_t = args.init_t, final_t = args.final_t;
+    double init_hx = args.init_hx, final_hx = args.final_hx;
+    int tau = args.tau;
 
     constants_t constants = (constants_t) {
         .n        = 0,   /* Number of sites */
@@ -212,7 +211,7 @@ int main (int argc, char *argv[]) {
         fclose(fptr);
 
         params.beta = 1.0 / init_t; /* Initialize beta */
-        printf("Initial energy: %f\n", measure_energy(&params, constants, 0));
+        printf("Initial energy: %f\n", measure_energy(&params, constants, 0, 1));
     }
 
     /* Warm up */
@@ -248,8 +247,10 @@ int main (int argc, char *argv[]) {
         params.pa2 = 2 * jsum / (2. * jsum + hx * (double)(n - lc_len));
 
         mc_sweep(&params, constants);
-        measure_energy(&params, constants, j);
+        measure_energy(&params, constants, j, (short)args.print_progress);
     }
+    printf("Energy: %f\n", measure_energy(&params, constants, tau - 1, 0));
+
     clean_up(path_t, path_hx, NULL);
 
     if (args.print_conf) {
@@ -261,7 +262,7 @@ int main (int argc, char *argv[]) {
             perror("fopen");
             exit(0);
         }
-        const double final_eng = measure_energy(&params, constants, constants.tau);
+        const double final_eng = measure_energy(&params, constants, constants.tau, 1);
         print_spins(fptr, constants.n, params.spins, final_eng, constants.init_t, constants.tau,
                     constants.init_hx);
     }
@@ -278,7 +279,7 @@ static int check_lcoeffs (lcoeff_t *lcoeffs, size_t n, const int site) {
     return -1;
 }
 
-double measure_energy (params_t *p, constants_t c, int stp) {
+double measure_energy (params_t *p, constants_t c, int stp, short print_progress) {
     oper_t *opers = p->opers;
     bond_t *bonds = p->bonds;
     short *spins  = p->spins;
@@ -296,7 +297,7 @@ double measure_energy (params_t *p, constants_t c, int stp) {
     }
 
     /* printf("%f\t%f\t%f\n", p->beta, p->hx, eng); */
-    printf("%f\t%f\t%f\n", 1 / p->beta, p->hx, eng);
+    if (print_progress) printf("%f\t%f\t%f\n", 1 / p->beta, p->hx, eng);
     if (stp == tau) {
         /* Print the final state */
         for (int b = 0; b < nb; ++b) {
