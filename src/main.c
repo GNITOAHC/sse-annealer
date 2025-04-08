@@ -296,6 +296,18 @@ double measure_energy (params_t *p, constants_t c, int stp, short print_progress
         }
     }
 
+    static float min_eng = 0.0;
+
+    if (eng < min_eng) {
+        min_eng = eng;
+        printf("min_eng: %f\n", min_eng);
+        FILE *fptr = fopen("min_eng.txt", "w");
+        fprintf(fptr, "# %f\n", min_eng);
+        for (int i = 0; i < n; ++i) {
+            fprintf(fptr, "%d\t%d\n", i, spins[i]);
+        }
+    }
+
     /* printf("%f\t%f\t%f\n", p->beta, p->hx, eng); */
     if (print_progress) printf("%f\t%f\t%f\n", 1 / p->beta, p->hx, eng);
     if (stp == tau) {

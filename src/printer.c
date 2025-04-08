@@ -53,7 +53,7 @@ void print_spins (FILE *fptr, const int n, const short *const spins, const doubl
         perror("fopen");
         exit(0);
     }
-    fprintf(fptr_out, "%f\n", final_eng);
+    fprintf(fptr_out, "# %f\n", final_eng);
 
     for (int i = 0; i < n; ++i) {
         /* if (spins_tmp[i] != 0) { printf("%d %d\n", i, spins_tmp[i]); } */
